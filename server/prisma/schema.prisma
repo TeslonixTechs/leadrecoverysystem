@@ -1,0 +1,170 @@
+// Prisma Schema for ServiceFlow MVP
+// Default database is SQLite for zero-config local development
+// Fully compatible with PostgreSQL for production deployment
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("ADMIN")
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([businessId])
+}
+
+model Business {
+  id                 String           @id @default(uuid())
+  name               String
+  slug               String           @unique
+  phone              String
+  email              String
+  address            String?
+  city               String?
+  state              String?
+  zipCode            String?
+  serviceArea        String?
+  timezone           String           @default("America/Chicago")
+  ratingScore        Float            @default(4.9)
+  ratingCount        Int              @default(128)
+  emergencyEnabled   Boolean          @default(true)
+  travelBufferMinutes Int             @default(30)
+  arrivalWindowType  String           @default("ESTIMATED_WINDOW")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  users              User[]
+  services           Service[]
+  businessHours      BusinessHours[]
+  blockedTimes       BlockedTime[]
+  customers          Customer[]
+  serviceRequests    ServiceRequest[]
+  appointments       Appointment[]
+}
+
+model Service {
+  id              String           @id @default(uuid())
+  businessId      String
+  business        Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  durationMinutes Int
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  serviceRequests ServiceRequest[]
+  appointments    Appointment[]
+
+  @@index([businessId])
+}
+
+model BusinessHours {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  isOpen     Boolean  @default(true)
+  openTime   String   // "08:00"
+  closeTime  String   // "18:00"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, dayOfWeek])
+  @@index([businessId])
+}
+
+model BlockedTime {
+  id          String   @id @default(uuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title       String
+  date        String   // "YYYY-MM-DD"
+  startTime   String   // "12:00"
+  endTime     String   // "13:00"
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, date])
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  phone      String
+  email      String?
+  address    String
+  city       String
+  zipCode    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  serviceRequests ServiceRequest[]
+  appointments    Appointment[]
+
+  @@index([businessId])
+}
+
+model ServiceRequest {
+  id                 String       @id @default(uuid())
+  businessId         String
+  business           Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceId          String
+  service            Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  appointmentId     String?      @unique
+  appointment        Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  problemDescription String
+  urgency            String       // "EMERGENCY" | "URGENT" | "ROUTINE" | "NOT_SURE"
+  photoUrls          String?      // JSON string array of base64 or photo URLs
+  status             String       @default("NEW") // "NEW" | "SCHEDULED" | "COMPLETED" | "CANCELLED"
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([serviceId])
+  @@index([status])
+}
+
+model Appointment {
+  id              String          @id @default(uuid())
+  businessId      String
+  business        Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceId       String
+  service         Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceRequest  ServiceRequest?
+  referenceNumber String          @unique
+  date            String          // "YYYY-MM-DD"
+  startTime       String          // "16:00"
+  endTime         String          // "18:00"
+  estimatedArrival String         // "4:00 PM"
+  durationMinutes Int
+  status          String          @default("SCHEDULED") // "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([serviceId])
+  @@index([date])
+  @@index([status])
+}
