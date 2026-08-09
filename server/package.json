@@ -9,7 +9,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "node prisma/seed.js",
-    "test": "node --test tests/**/*.test.js"
+    "test": "node --test tests/**/*.test.js",
+    "setup-production": "node prisma/setup-production.js"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
